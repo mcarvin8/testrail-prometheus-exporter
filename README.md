@@ -1,5 +1,9 @@
 # TestRail Prometheus Exporter
 
+![Docker Image Version (latest by date)](https://img.shields.io/docker/v/mcarvin8/testrail-prometheus-exporter?sort=date)
+![Docker Pulls](https://img.shields.io/docker/pulls/mcarvin8/testrail-prometheus-exporter)
+![Docker Image Size (latest by date)](https://img.shields.io/docker/image-size/mcarvin8/testrail-prometheus-exporter)
+
 A Prometheus exporter that fetches test execution data from TestRail API and exposes it as Prometheus metrics for observability and alerting.
 
 ## Overview
