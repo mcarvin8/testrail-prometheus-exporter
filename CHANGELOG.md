@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.0.0...v1.0.1) (2025-11-26)
+
+
+### Bug Fixes
+
+* trigger build due to GitHub token issues ([a6773b5](https://github.com/mcarvin8/testrail-prometheus-exporter/commit/a6773b5a7bd6464a977055b0f5fbc1c5e94fa685))
+
 ## 1.0.0 (2025-11-25)
 
 
