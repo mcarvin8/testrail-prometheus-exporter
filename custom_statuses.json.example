@@ -1,0 +1,11 @@
+{
+  "custom_statuses": [
+    {
+      "status_id": 5,
+      "field_name": "custom_status5_count",
+      "metric_name": "skipped",
+      "description": "Number of skipped tests"
+    }
+  ]
+}
+

@@ -13,6 +13,7 @@ Metrics Defined:
     - test_run_untested_count: Count of untested tests per run
     - test_run_blocked_count: Count of blocked tests per run
     - test_result_info: Detailed information about individual test results
+    - test_run_<custom_metric_name>_count: Custom status counts (dynamically created)
 
 All gauges use labels to provide dimensional data that can be queried and filtered
 in Prometheus queries and Grafana visualizations.
@@ -31,3 +32,33 @@ test_run_blocked_count = Gauge('test_run_blocked_count', 'Number of blocked test
 
 test_result_info = Gauge('testrail_test_result', 'Information about individual test results',
                          ['run_id','test_id', 'title', 'status_id', 'created_date', 'comment'])
+
+# Dictionary to store dynamically created custom status gauges
+# Key: field_name (e.g., 'custom_status5_count')
+# Value: Gauge object
+custom_status_gauges = {}
+
+
+def create_custom_status_gauges(custom_status_config):
+    """
+    Dynamically create Prometheus Gauge metrics for custom statuses.
+    
+    Args:
+        custom_status_config: Dictionary mapping field_name to status configuration
+                             (from custom_status_config.load_custom_status_config())
+    
+    Returns:
+        dict: Dictionary mapping field_name to Gauge objects
+    """
+    gauges = {}
+    for field_name, status_config in custom_status_config.items():
+        metric_name = status_config['metric_name']
+        description = status_config['description']
+        # Create metric name like 'test_run_skipped_count'
+        prometheus_metric_name = f"test_run_{metric_name}_count"
+        
+        # Create the Gauge with standard labels
+        gauge = Gauge(prometheus_metric_name, description, ['run_id', 'created_date'])
+        gauges[field_name] = gauge
+    
+    return gauges

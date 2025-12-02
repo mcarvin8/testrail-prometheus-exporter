@@ -25,6 +25,7 @@ Prometheus Metrics Exposed:
     - test_run_untested_count: Count of untested tests per run
     - test_run_blocked_count: Count of blocked tests per run
     - testrail_test_result: Individual test result details
+    - test_run_<custom_metric_name>_count: Custom status counts (dynamically created based on configuration)
 
 Environment Variables Required:
     - TESTRAIL_API_KEY: TestRail API authentication key
@@ -37,6 +38,7 @@ Environment Variables Optional:
                      Format: hour values separated by commas (e.g., "0,6,12,18" for every 6 hours)
     - METRICS_PORT: Port for Prometheus metrics server (default: 9001)
     - LOOKBACK_DAYS: Number of days to look back for test runs (default: 7)
+    - CUSTOM_STATUS_CONFIG: Path to JSON file defining custom statuses (default: "custom_statuses.json")
 
 Usage:
     python testrail_exporter.py
@@ -57,7 +59,8 @@ from logger import logger
 from gauges import (test_run_info, test_run_passed_count,
                     test_run_failed_count, test_run_retest_count,
                     test_run_untested_count, test_run_blocked_count,
-                    test_result_info)
+                    test_result_info, create_custom_status_gauges)
+from custom_status_config import load_custom_status_config
 
 
 def fetch_requested_data(url, auth):
@@ -78,7 +81,7 @@ def format_timestamp(timestamp):
     return datetime.fromtimestamp(int(timestamp), tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def expose_test_reports(auth, project_id, lookback_days):
+def expose_test_reports(auth, project_id, lookback_days, custom_status_gauges=None):
     '''
     Retrieve the test runs from TestRail tool and
     expose test run report
@@ -87,6 +90,7 @@ def expose_test_reports(auth, project_id, lookback_days):
         auth: HTTPBasicAuth object for TestRail authentication
         project_id: TestRail project ID to monitor
         lookback_days: Number of days to look back for test runs
+        custom_status_gauges: Dictionary mapping field_name to Gauge objects for custom statuses
     '''
     logger.info('Test Report function started...')
     test_run_info.clear()
@@ -96,6 +100,11 @@ def expose_test_reports(auth, project_id, lookback_days):
     test_run_untested_count.clear()
     test_run_blocked_count.clear()
     test_result_info.clear()
+    
+    # Clear custom status gauges if they exist
+    if custom_status_gauges:
+        for gauge in custom_status_gauges.values():
+            gauge.clear()
 
     today = datetime.now(timezone.utc)
     past_period = today - timedelta(days=lookback_days)
@@ -133,6 +142,17 @@ def expose_test_reports(auth, project_id, lookback_days):
                                            created_date=created_datex).set(runx['untested_count'])
             test_run_blocked_count.labels(run_id=runx['id'],
                                           created_date=created_datex).set(runx['blocked_count'])
+
+            # Handle custom status counts
+            if custom_status_gauges:
+                for field_name, gauge in custom_status_gauges.items():
+                    # Check if the field exists in the run data
+                    if field_name in runx:
+                        count_value = runx.get(field_name, 0)
+                        gauge.labels(run_id=runx['id'],
+                                    created_date=created_datex).set(count_value)
+                        logger.debug("Set custom status %s=%d for run ID=%s", 
+                                    field_name, count_value, runx['id'])
 
             test_id_to_title = {}
 
@@ -201,6 +221,11 @@ if __name__ == '__main__':
     SCHEDULE_CRON = os.getenv('SCHEDULE_CRON', '0,12')
     METRICS_PORT = int(os.getenv('METRICS_PORT', '9001'))
     LOOKBACK_DAYS = int(os.getenv('LOOKBACK_DAYS', '7'))
+    CUSTOM_STATUS_CONFIG_PATH = os.getenv('CUSTOM_STATUS_CONFIG', 'custom_statuses.json')
+    
+    # Load custom status configuration
+    custom_status_config = load_custom_status_config(CUSTOM_STATUS_CONFIG_PATH)
+    custom_status_gauges = create_custom_status_gauges(custom_status_config) if custom_status_config else None
     
     logger.info('Configuration loaded:')
     logger.info('  TestRail Base URL: %s', BASE_URL)
@@ -208,6 +233,10 @@ if __name__ == '__main__':
     logger.info('  Schedule: %s (UTC hours)', SCHEDULE_CRON)
     logger.info('  Prometheus Port: %s', METRICS_PORT)
     logger.info('  Lookback Days: %s', LOOKBACK_DAYS)
+    if custom_status_gauges:
+        logger.info('  Custom Statuses: %d configured', len(custom_status_gauges))
+    else:
+        logger.info('  Custom Statuses: None configured')
     
     # Start Prometheus HTTP server
     start_http_server(METRICS_PORT)
@@ -221,7 +250,7 @@ if __name__ == '__main__':
     
     # Schedule the job to run at configured hours
     scheduler.add_job(
-        func=lambda: expose_test_reports(authentication, PROJECT_ID, LOOKBACK_DAYS),
+        func=lambda: expose_test_reports(authentication, PROJECT_ID, LOOKBACK_DAYS, custom_status_gauges),
         trigger=CronTrigger(hour=SCHEDULE_CRON, timezone='UTC'),
         id='test_reports_job',
         name='Fetch and expose TestRail reports',
@@ -232,7 +261,7 @@ if __name__ == '__main__':
     
     # Run the job immediately on startup
     logger.info('Running initial test report collection...')
-    expose_test_reports(authentication, PROJECT_ID, LOOKBACK_DAYS)
+    expose_test_reports(authentication, PROJECT_ID, LOOKBACK_DAYS, custom_status_gauges)
     
     # Start the scheduler (this blocks and keeps the script running)
     logger.info('Starting scheduler...')

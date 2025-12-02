@@ -31,6 +31,7 @@ The exporter exposes the following metrics:
 - `test_run_untested_count`: Count of untested tests per run
 - `test_run_blocked_count`: Count of blocked tests per run
 - `testrail_test_result`: Individual test result details with labels (run_id, test_id, title, status_id, created_date, comment)
+- `test_run_<custom_metric_name>_count`: Custom status counts (dynamically created based on configuration)
 
 ## Quick Start
 
@@ -98,6 +99,40 @@ docker-compose up -d
 | `SCHEDULE_CRON` | Cron expression for scheduling (UTC hours, comma-separated) | `0,12` | `0,6,12,18` (every 6 hours) |
 | `METRICS_PORT` | Port for Prometheus metrics server | `9001` | `9090` |
 | `LOOKBACK_DAYS` | Number of days to look back for test runs | `7` | `14` |
+| `CUSTOM_STATUS_CONFIG` | Path to JSON file defining custom statuses | `custom_statuses.json` | `/config/custom_statuses.json` |
+
+### Custom Status Configuration
+
+The exporter supports custom test statuses beyond the standard passed, failed, blocked, retest, and untested statuses. This is useful for teams that have custom statuses like "skipped" or other status-specific metrics.
+
+To configure custom statuses, create a JSON file (default: `custom_statuses.json`) with the following format:
+
+```json
+{
+  "custom_statuses": [
+    {
+      "status_id": 5,
+      "field_name": "custom_status5_count",
+      "metric_name": "skipped",
+      "description": "Number of skipped tests"
+    }
+  ]
+}
+```
+
+**Configuration Fields:**
+- `status_id`: The TestRail status ID (optional, for reference)
+- `field_name`: The exact field name as returned by the TestRail API (e.g., `custom_status5_count`)
+- `metric_name`: The name used in the Prometheus metric (e.g., `skipped` creates `test_run_skipped_count`)
+- `description`: Description for the Prometheus metric
+
+**Example:**
+If you configure a custom status with `field_name: "custom_status5_count"` and `metric_name: "skipped"`, the exporter will:
+- Look for `custom_status5_count` in the TestRail API response
+- Create a Prometheus metric named `test_run_skipped_count`
+- Expose the count with labels `run_id` and `created_date`
+
+**Note:** The `field_name` must exactly match the field name returned by the TestRail API. You can find these field names by inspecting the TestRail API response for test runs.
 
 ### Scheduling
 
@@ -161,6 +196,14 @@ sum(test_run_passed_count)
 ```promql
 testrail_test_result{status_id="5"}
 ```
+
+### Custom status counts (e.g., skipped tests)
+
+```promql
+test_run_skipped_count
+```
+
+**Note:** The metric name depends on your custom status configuration. If you configured `metric_name: "skipped"`, the metric will be `test_run_skipped_count`.
 
 ## Troubleshooting
 
