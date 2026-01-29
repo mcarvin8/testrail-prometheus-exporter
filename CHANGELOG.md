@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.1](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.1.0...v1.1.1) (2026-01-29)
+
+
+### Bug Fixes
+
+* **docker:** apply security suggestions ([ee9ff64](https://github.com/mcarvin8/testrail-prometheus-exporter/commit/ee9ff6495ff200d32f54158431df8706409724f4))
+* **docker:** set default timezone to utc ([cc262ff](https://github.com/mcarvin8/testrail-prometheus-exporter/commit/cc262ffcd67fed9ba17d8958e8bfe8af6e0e74db))
+* **exporter:** reduce cognitive complexity ([5338653](https://github.com/mcarvin8/testrail-prometheus-exporter/commit/53386531fa87028f8f4ba93762d109a4d4f77906))
+* **scheduler:** re-raise graceful shutdown ([54f00a0](https://github.com/mcarvin8/testrail-prometheus-exporter/commit/54f00a081dd153d452b13a9b092f5b6744cb86f5))
+
 ## [1.1.0](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.0.1...v1.1.0) (2025-12-02)
 
 
