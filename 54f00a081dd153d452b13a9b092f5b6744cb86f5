@@ -1,0 +1,23 @@
+src/testrail_exporter.py
+  9ae812a5ae8570df 330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.0.37",
+  "base_commit_sha": "54f00a081dd153d452b13a9b092f5b6744cb86f5",
+  "prompts": {
+    "9ae812a5ae8570df": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "30001acf-7874-4006-b090-d354319677fb",
+        "model": "default"
+      },
+      "human_author": "Matt Carvin <90224411+mcarvin8@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
