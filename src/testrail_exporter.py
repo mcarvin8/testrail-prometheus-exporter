@@ -327,3 +327,4 @@ if __name__ == "__main__":
         logger.info("Scheduler shutdown requested")
         scheduler.shutdown()
         logger.info("Scheduler stopped gracefully")
+        raise
