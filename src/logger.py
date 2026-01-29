@@ -9,11 +9,11 @@ logging output that can be ingested by various log aggregation platforms
 Exports:
     - logger: Configured logging instance for use across monitoring modules
 """
+
 import logging
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
