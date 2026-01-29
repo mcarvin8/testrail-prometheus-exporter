@@ -90,6 +90,120 @@ def format_timestamp(timestamp):
     )
 
 
+def _clear_gauges(custom_status_gauges):
+    """Clear built-in and custom status gauges."""
+    test_run_info.clear()
+    test_run_passed_count.clear()
+    test_run_failed_count.clear()
+    test_run_retest_count.clear()
+    test_run_untested_count.clear()
+    test_run_blocked_count.clear()
+    test_result_info.clear()
+    if custom_status_gauges:
+        for gauge in custom_status_gauges.values():
+            gauge.clear()
+
+
+def _set_run_summary_metrics(runx, created_datex):
+    """Set test_run_info and count gauges for a single run."""
+    test_run_info.labels(
+        run_id=runx["id"],
+        created_date=created_datex,
+        name=runx["name"],
+        passed=runx["passed_count"],
+        failed=runx["failed_count"],
+        retest=runx["retest_count"],
+        untested=runx["untested_count"],
+        blocked=runx["blocked_count"],
+    ).set(1)
+    test_run_passed_count.labels(run_id=runx["id"], created_date=created_datex).set(
+        runx["passed_count"]
+    )
+    test_run_failed_count.labels(run_id=runx["id"], created_date=created_datex).set(
+        runx["failed_count"]
+    )
+    test_run_retest_count.labels(run_id=runx["id"], created_date=created_datex).set(
+        runx["retest_count"]
+    )
+    test_run_untested_count.labels(run_id=runx["id"], created_date=created_datex).set(
+        runx["untested_count"]
+    )
+    test_run_blocked_count.labels(run_id=runx["id"], created_date=created_datex).set(
+        runx["blocked_count"]
+    )
+
+
+def _set_custom_status_metrics(runx, created_datex, custom_status_gauges):
+    """Set custom status gauge values for a single run."""
+    if not custom_status_gauges:
+        return
+    for field_name, gauge in custom_status_gauges.items():
+        if field_name not in runx:
+            continue
+        count_value = runx.get(field_name, 0)
+        gauge.labels(run_id=runx["id"], created_date=created_datex).set(count_value)
+        logger.debug(
+            "Set custom status %s=%d for run ID=%s",
+            field_name,
+            count_value,
+            runx["id"],
+        )
+
+
+def _get_test_id_to_title(runx, auth):
+    """Fetch tests for a run and return a dict of test_id -> title, or None on error."""
+    test_cases_endpoint = f"{BASE_URL}get_tests/{runx['id']}"
+    try:
+        tests_response = fetch_requested_data(test_cases_endpoint, auth)
+        test_cases = tests_response.json()
+        logger.debug(
+            "Parsing %d test cases for run ID=%s",
+            len(test_cases.get("tests", [])),
+            runx["id"],
+        )
+        return {
+            test_case["id"]: test_case["title"]
+            for test_case in test_cases.get("tests", [])
+        }
+    except (ValueError, AttributeError) as e:
+        logger.error("Error decoding JSON response for test cases: %s", e)
+        return None
+
+
+def _set_test_result_metrics(runx, test_id_to_title, auth):
+    """Fetch results for a run and set test_result_info metrics (excludes status_id 10)."""
+    test_results_endpoint = f"{BASE_URL}get_results_for_run/{runx['id']}"
+    try:
+        results_response = fetch_requested_data(test_results_endpoint, auth=auth)
+        test_results = results_response.json()
+        logger.debug(
+            "Parsing %d test results for run ID=%s",
+            len(test_results.get("results", [])),
+            runx["id"],
+        )
+        for result in test_results.get("results", []):
+            if result["status_id"] == 10:
+                continue
+            title = test_id_to_title.get(result["test_id"], "Unknown Title")
+            created_date = format_timestamp(result["created_on"])
+            logger.debug(
+                "Parsing test result: Test ID=%s, Title=%s, Status=%s",
+                result["test_id"],
+                title,
+                result["status_id"],
+            )
+            test_result_info.labels(
+                run_id=runx["id"],
+                test_id=result["test_id"],
+                title=title,
+                status_id=result["status_id"],
+                created_date=created_date,
+                comment=result["comment"],
+            ).set(1)
+    except (ValueError, AttributeError) as e:
+        logger.error("Error decoding JSON response for test results: %s", e)
+
+
 def expose_test_reports(auth, project_id, lookback_days, custom_status_gauges=None):
     """
     Retrieve the test runs from TestRail tool and
@@ -102,142 +216,33 @@ def expose_test_reports(auth, project_id, lookback_days, custom_status_gauges=No
         custom_status_gauges: Dictionary mapping field_name to Gauge objects for custom statuses
     """
     logger.info("Test Report function started...")
-    test_run_info.clear()
-    test_run_passed_count.clear()
-    test_run_failed_count.clear()
-    test_run_retest_count.clear()
-    test_run_untested_count.clear()
-    test_run_blocked_count.clear()
-    test_result_info.clear()
-
-    # Clear custom status gauges if they exist
-    if custom_status_gauges:
-        for gauge in custom_status_gauges.values():
-            gauge.clear()
+    _clear_gauges(custom_status_gauges)
 
     today = datetime.now(timezone.utc)
     past_period = today - timedelta(days=lookback_days)
     start_timestamp = int(past_period.timestamp())
     now = int(today.timestamp())
-
-    # Update endpoint URL to get only test runs created in the lookback period
     test_runs_endpoint = f"{BASE_URL}get_runs/{project_id}&created_after={start_timestamp}&created_before={now}"
 
     try:
         runs_response = fetch_requested_data(test_runs_endpoint, auth)
         runs = runs_response.json()
-    except ValueError as e:
+    except (ValueError, AttributeError) as e:
         logger.error("Error decoding JSON response: %s", e)
         return
 
     for runx in runs.get("runs", []):
-        if runx.get("is_completed", False):
-            logger.debug(
-                "Parsing test run: ID=%s, Name=%s", runx["id"], runx.get("name", "")
-            )
-
-            created_datex = format_timestamp(runx["created_on"])
-
-            test_run_info.labels(
-                run_id=runx["id"],
-                created_date=created_datex,
-                name=runx["name"],
-                passed=runx["passed_count"],
-                failed=runx["failed_count"],
-                retest=runx["retest_count"],
-                untested=runx["untested_count"],
-                blocked=runx["blocked_count"],
-            ).set(1)
-
-            test_run_passed_count.labels(
-                run_id=runx["id"], created_date=created_datex
-            ).set(runx["passed_count"])
-            test_run_failed_count.labels(
-                run_id=runx["id"], created_date=created_datex
-            ).set(runx["failed_count"])
-            test_run_retest_count.labels(
-                run_id=runx["id"], created_date=created_datex
-            ).set(runx["retest_count"])
-            test_run_untested_count.labels(
-                run_id=runx["id"], created_date=created_datex
-            ).set(runx["untested_count"])
-            test_run_blocked_count.labels(
-                run_id=runx["id"], created_date=created_datex
-            ).set(runx["blocked_count"])
-
-            # Handle custom status counts
-            if custom_status_gauges:
-                for field_name, gauge in custom_status_gauges.items():
-                    # Check if the field exists in the run data
-                    if field_name in runx:
-                        count_value = runx.get(field_name, 0)
-                        gauge.labels(run_id=runx["id"], created_date=created_datex).set(
-                            count_value
-                        )
-                        logger.debug(
-                            "Set custom status %s=%d for run ID=%s",
-                            field_name,
-                            count_value,
-                            runx["id"],
-                        )
-
-            test_id_to_title = {}
-
-            test_cases_endpoint = f"{BASE_URL}get_tests/{runx['id']}"
-
-            try:
-                tests_response = fetch_requested_data(test_cases_endpoint, auth)
-                test_cases = tests_response.json()
-                logger.debug(
-                    "Parsing %d test cases for run ID=%s",
-                    len(test_cases.get("tests", [])),
-                    runx["id"],
-                )
-                for test_case in test_cases["tests"]:
-                    logger.debug(
-                        "Parsing test case: ID=%s, Title=%s",
-                        test_case["id"],
-                        test_case["title"],
-                    )
-                    test_id_to_title[test_case["id"]] = test_case["title"]
-            except ValueError as e:
-                logger.error("Error decoding JSON response for test cases: %s", e)
-                continue
-
-            test_results_endpoint = f"{BASE_URL}get_results_for_run/{runx['id']}"
-
-            try:
-                results_response = fetch_requested_data(
-                    test_results_endpoint, auth=auth
-                )
-                test_results = results_response.json()
-                logger.debug(
-                    "Parsing %d test results for run ID=%s",
-                    len(test_results.get("results", [])),
-                    runx["id"],
-                )
-                for result in test_results.get("results", []):
-                    if result["status_id"] != 10:
-                        title = test_id_to_title.get(result["test_id"], "Unknown Title")
-                        created_date = format_timestamp(result["created_on"])
-                        logger.debug(
-                            "Parsing test result: Test ID=%s, Title=%s, Status=%s",
-                            result["test_id"],
-                            title,
-                            result["status_id"],
-                        )
-
-                        test_result_info.labels(
-                            run_id=runx["id"],
-                            test_id=result["test_id"],
-                            title=title,
-                            status_id=result["status_id"],
-                            created_date=created_date,
-                            comment=result["comment"],
-                        ).set(1)
-            except ValueError as e:
-                logger.error("Error decoding JSON response for test results: %s", e)
-                continue
+        if not runx.get("is_completed", False):
+            continue
+        logger.debug(
+            "Parsing test run: ID=%s, Name=%s", runx["id"], runx.get("name", "")
+        )
+        created_datex = format_timestamp(runx["created_on"])
+        _set_run_summary_metrics(runx, created_datex)
+        _set_custom_status_metrics(runx, created_datex, custom_status_gauges)
+        test_id_to_title = _get_test_id_to_title(runx, auth)
+        if test_id_to_title is not None:
+            _set_test_result_metrics(runx, test_id_to_title, auth)
 
 
 if __name__ == "__main__":
