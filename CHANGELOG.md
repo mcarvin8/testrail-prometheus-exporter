@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.3](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.1.2...v1.1.3) (2026-03-12)
+
+
+### Bug Fixes
+
+* **docker:** set unique user id ([d2e1995](https://github.com/mcarvin8/testrail-prometheus-exporter/commit/d2e1995e92885e5c14fde571d9624e6a0227c292))
+
 ## [1.1.2](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.1.1...v1.1.2) (2026-03-12)
 
 
