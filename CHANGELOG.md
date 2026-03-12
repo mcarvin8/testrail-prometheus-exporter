@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.1.1...v1.1.2) (2026-03-12)
+
+
+### Bug Fixes
+
+* **docker:** use numeric UID for USER so Kubernetes runAsNonRoot can verify non-root ([498d97e](https://github.com/mcarvin8/testrail-prometheus-exporter/commit/498d97e65aae08ef4047d01fd477808d9062cb5f))
+
 ## [1.1.1](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.1.0...v1.1.1) (2026-01-29)
 
 
