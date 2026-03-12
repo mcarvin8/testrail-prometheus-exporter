@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 python3
     /opt/venv/bin/pip list
 
 # Create non-root user for running the application (numeric UID for Kubernetes runAsNonRoot)
-ARG EXPORTER_UID=1000
+# Use 1001 by default; Ubuntu base often has UID 1000 already, so 1001 avoids "UID is not unique"
+ARG EXPORTER_UID=1001
 RUN useradd --uid ${EXPORTER_UID} --create-home --shell /bin/bash exporter && \
     chown -R exporter:exporter /app/testrail-prometheus-exporter /opt/venv
 
