@@ -55,7 +55,7 @@ from prometheus_client import start_http_server
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from constants import REQUESTS_TIMEOUT_SECONDS, BASE_URL
+from constants import REQUESTS_TIMEOUT_SECONDS, BASE_URL, TESTRAIL_PAGE_SIZE
 from logger import logger
 from gauges import (
     test_run_info,
@@ -151,20 +151,38 @@ def _set_custom_status_metrics(runx, created_datex, custom_status_gauges):
 
 
 def _get_test_id_to_title(runx, auth):
-    """Fetch tests for a run and return a dict of test_id -> title, or None on error."""
-    test_cases_endpoint = f"{BASE_URL}get_tests/{runx['id']}"
+    """Fetch tests for a run (with pagination) and return a dict of test_id -> title, or None on error."""
+    test_id_to_title = {}
+    offset = 0
     try:
-        tests_response = fetch_requested_data(test_cases_endpoint, auth)
-        test_cases = tests_response.json()
+        while True:
+            test_cases_endpoint = (
+                f"{BASE_URL}get_tests/{runx['id']}&limit={TESTRAIL_PAGE_SIZE}&offset={offset}"
+            )
+            tests_response = fetch_requested_data(test_cases_endpoint, auth)
+            if tests_response is None:
+                return None
+            test_cases = tests_response.json()
+            tests = test_cases.get("tests", [])
+            if not tests:
+                break
+            for test_case in tests:
+                test_id_to_title[test_case["id"]] = test_case["title"]
+            logger.debug(
+                "Parsing %d test cases for run ID=%s (offset=%d)",
+                len(tests),
+                runx["id"],
+                offset,
+            )
+            if len(tests) < TESTRAIL_PAGE_SIZE:
+                break
+            offset += TESTRAIL_PAGE_SIZE
         logger.debug(
-            "Parsing %d test cases for run ID=%s",
-            len(test_cases.get("tests", [])),
+            "Total %d test cases for run ID=%s",
+            len(test_id_to_title),
             runx["id"],
         )
-        return {
-            test_case["id"]: test_case["title"]
-            for test_case in test_cases.get("tests", [])
-        }
+        return test_id_to_title
     except (ValueError, AttributeError) as e:
         logger.error("Error decoding JSON response for test cases: %s", e)
         return None
@@ -184,7 +202,9 @@ def _set_test_result_metrics(runx, test_id_to_title, auth):
         for result in test_results.get("results", []):
             if result["status_id"] == 10:
                 continue
-            title = test_id_to_title.get(result["test_id"], "Unknown Title")
+            # Normalize to int so lookup matches keys in test_id_to_title
+            result_test_id = int(result['test_id'])
+            title = test_id_to_title.get(result_test_id, "Unknown Title")
             created_date = format_timestamp(result["created_on"])
             logger.debug(
                 "Parsing test result: Test ID=%s, Title=%s, Status=%s",
