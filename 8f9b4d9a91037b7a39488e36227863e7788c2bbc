@@ -1,0 +1,25 @@
+src/constants.py
+  c952cfa983b6b185 10-12,22
+src/testrail_exporter.py
+  c952cfa983b6b185 58,154-156,158-161,163-179,181-182,185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.11",
+  "base_commit_sha": "8f9b4d9a91037b7a39488e36227863e7788c2bbc",
+  "prompts": {
+    "c952cfa983b6b185": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "096bf750-bd4a-42eb-b841-b789089ff316",
+        "model": "default"
+      },
+      "human_author": "Matt Carvin <90224411+mcarvin8@users.noreply.github.com>",
+      "messages": [],
+      "total_additions": 33,
+      "total_deletions": 11,
+      "accepted_lines": 32,
+      "overriden_lines": 0
+    }
+  }
+}
