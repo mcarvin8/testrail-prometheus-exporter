@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.1.3...v1.1.4) (2026-03-13)
+
+
+### Bug Fixes
+
+* **exporter:** paginate get_tests to resolve unknown titles beyond 250 results ([8f9b4d9](https://github.com/mcarvin8/testrail-prometheus-exporter/commit/8f9b4d9a91037b7a39488e36227863e7788c2bbc))
+
 ## [1.1.3](https://github.com/mcarvin8/testrail-prometheus-exporter/compare/v1.1.2...v1.1.3) (2026-03-12)
 
 
