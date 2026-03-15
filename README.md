@@ -4,11 +4,7 @@
 ![Docker Pulls](https://img.shields.io/docker/pulls/mcarvin8/testrail-prometheus-exporter)
 ![Docker Image Size (latest by date)](https://img.shields.io/docker/image-size/mcarvin8/testrail-prometheus-exporter)
 
-A Prometheus exporter that fetches test execution data from TestRail API and exposes it as Prometheus metrics for observability and alerting.
-
-## Overview
-
-The TestRail Prometheus Exporter continuously polls the TestRail API for completed test runs and exposes detailed test metrics as Prometheus gauges. It runs as a long-lived service with configurable scheduling using APScheduler.
+The TestRail Prometheus Exporter is a long-runnign service that polls the TestRail API on a configurable interval for completed test runs and exposes detailed test metrics as Prometheus metrics.
 
 ## Features
 
